@@ -372,14 +372,118 @@ Do not replace an existing production raw/reporting path during the soak.
 
 Only after manual acceptance, add a deployment-owned wrapper and scheduler.
 
-Cron shape:
+Raw OS does not automatically install a service during first install. The agent
+must choose the scheduler explicitly during promotion, based on the target
+platform and owner approval:
 
-```cron
-0 8 * * * cd /path/to/raw-os && scripts/raw-os daily --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=<timezone> date +\%F)" --mainline <mainline> --spool /path/to/events.jsonl --stateful >> /path/to/workspace/tmp/raw-os-logs/official.log 2>&1
+- macOS: prefer `launchd` user agent.
+- Linux with systemd: prefer a user-level `systemd` service + timer.
+- Minimal Linux / portable fallback: use `cron`.
+
+Always dry-run by writing the proposed wrapper and scheduler files into the
+workspace first. Show the owner:
+
+- wrapper path
+- scheduler path or crontab line
+- daily command
+- log path
+- enable/load command
+- rollback command
+
+Do not run `launchctl load`, `systemctl enable`, or `crontab` until the owner
+approves the exact generated files/line.
+
+Required wrapper shape:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+cd /path/to/raw-os
+DAY="$(TZ=<timezone> date +%F)"
+exec scripts/raw-os daily \
+  --config examples/<agent-id>.raw-os.json \
+  --anchor-day "$DAY" \
+  --mainline <mainline> \
+  --spool /path/to/events.jsonl \
+  --stateful
 ```
 
 For live OpenClaw roots, include `RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1` inside the
-wrapper or cron line only after owner approval.
+wrapper only after owner approval.
+
+Cron fallback shape:
+
+```cron
+0 8 * * * /path/to/raw-os/run-raw-os-daily.sh >> /path/to/workspace/tmp/raw-os-logs/official.log 2>&1
+```
+
+Linux systemd user timer shape:
+
+```ini
+# ~/.config/systemd/user/raw-os-daily.service
+[Unit]
+Description=Raw OS daily run
+
+[Service]
+Type=oneshot
+ExecStart=/path/to/raw-os/run-raw-os-daily.sh
+```
+
+```ini
+# ~/.config/systemd/user/raw-os-daily.timer
+[Unit]
+Description=Run Raw OS daily
+
+[Timer]
+OnCalendar=*-*-* 08:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+```
+
+Enable only after approval:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user enable --now raw-os-daily.timer
+systemctl --user list-timers raw-os-daily.timer
+```
+
+macOS launchd user agent shape:
+
+```xml
+<!-- ~/Library/LaunchAgents/com.example.raw-os.daily.plist -->
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.raw-os.daily</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/path/to/raw-os/run-raw-os-daily.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>0</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/path/to/workspace/tmp/raw-os-logs/official.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/path/to/workspace/tmp/raw-os-logs/official.err.log</string>
+</dict>
+</plist>
+```
+
+Load only after approval:
+
+```bash
+launchctl load ~/Library/LaunchAgents/com.example.raw-os.daily.plist
+launchctl list | grep raw-os
+```
 
 Prefer a small checked-in wrapper script per deployment so the schedule is
 auditable.

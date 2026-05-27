@@ -100,6 +100,16 @@ After promotion to an automated deployment, the agent may also add:
 Cron or delivery is not required for first install. First install is accepted by
 ledger, render, audit, and retrieval. Automation is promotion work.
 
+Raw OS does not auto-install a service during first install. During promotion,
+the agent should choose the scheduler by platform:
+
+- macOS: `launchd` user agent
+- Linux with systemd: user-level `systemd` service + timer
+- portable fallback: `cron`
+
+The agent should show the generated wrapper, scheduler file/line, log path,
+enable command, and rollback command before enabling automation.
+
 ## How Do I Use It?
 
 Humans normally do not use Raw OS directly. Ask your agent to install it and

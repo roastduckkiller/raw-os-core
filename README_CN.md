@@ -96,6 +96,15 @@ promotion 到自动化部署后，agent 还可能加：
 cron 和 delivery 不是首次安装的必要条件。首次安装的验收线是 ledger、render、
 audit、retrieval 跑通；自动化属于 promotion。
 
+Raw OS 首次安装时不会自动安装 service。promotion 阶段由 agent 按平台选择：
+
+- macOS：`launchd` user agent
+- Linux 且有 systemd：user-level `systemd` service + timer
+- 便携 fallback：`cron`
+
+agent 应先展示生成的 wrapper、scheduler 文件/行、log path、enable command、
+rollback command，再启用自动化。
+
 ## 装好了怎么用？
 
 人通常不直接操作 Raw OS。正确用法是让你的 agent 安装它，并接一个 runtime

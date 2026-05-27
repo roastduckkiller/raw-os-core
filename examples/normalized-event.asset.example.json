@@ -1,0 +1,42 @@
+{
+  "event_id": "evt_example_001",
+  "timestamp": "2026-04-28T11:02:00Z",
+  "channel": "weixin",
+  "provider": "example-weixin",
+  "chat_type": "direct",
+  "chat_id": "weixin:example-chat",
+  "message_id": "wx-msg-1",
+  "session_key": "agent:example:weixin:direct",
+  "sender": {
+    "id": "wxid_example",
+    "label": "User"
+  },
+  "sender_label": "你",
+  "speaker": "user",
+  "content_parts": [
+    {
+      "type": "text",
+      "text": "这张图和这段语音也要进入 raw 证据链"
+    }
+  ],
+  "attachment_refs": [
+    {
+      "kind": "image",
+      "local_path": "/tmp/raw-os-fixtures/photo.png",
+      "name": "photo.png"
+    },
+    {
+      "kind": "audio",
+      "status": "expired",
+      "uri": "weixin-temp-media:expired",
+      "error": "media expired before capture"
+    }
+  ],
+  "reply_to": {
+    "message_id": "previous-message-id"
+  },
+  "ingest_metadata": {
+    "adapter": "example",
+    "notes": "local_path is a fixture path; real adapters should pass captured temp files or explicit failure refs"
+  }
+}

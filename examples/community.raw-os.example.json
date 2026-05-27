@@ -1,0 +1,89 @@
+{
+  "schema": "raw-install-config/v1",
+  "agent": {
+    "agentId": "example-agent",
+    "agentLabel": "Example Agent",
+    "workspaceRoot": "/tmp/raw-os-example-workspace"
+  },
+  "time": {
+    "timezone": "Asia/Shanghai",
+    "anchorTime": "08:00",
+    "officialWindowMode": "daily-anchor",
+    "dayBoundaryMode": "anchor-based"
+  },
+  "mainlines": [
+    {
+      "name": "primary",
+      "enabled": true,
+      "channels": [
+        "telegram"
+      ],
+      "senderIds": [
+        "replace-with-human-sender-id"
+      ],
+      "speakerLabels": {
+        "user": "User",
+        "assistant": "Assistant"
+      },
+      "officialDelivery": {
+        "channel": "telegram",
+        "target": "replace-with-delivery-target"
+      }
+    }
+  ],
+  "storage": {
+    "ledgerDir": "./raw-ledger",
+    "assetStoreDir": "./assets",
+    "assetRegistryDir": "./asset-registry",
+    "deliveryRegistryDir": "./delivery-registry",
+    "stageMdDir": "./tmp/raw-md",
+    "officialMdDir": "./raw-md",
+    "officialDocxDir": "./raw-docx",
+    "artifactRoot": "./media",
+    "incidentDir": "./tmp/raw-report-incidents",
+    "stateDir": "./tmp/raw-os-state",
+    "memoryMdDir": "./raw-memory-md"
+  },
+  "assets": {
+    "enabled": true,
+    "storeMode": "content-addressed",
+    "recordCaptureFailure": true,
+    "hashAlgorithm": "sha256",
+    "captureKinds": [
+      "image",
+      "file",
+      "audio",
+      "video"
+    ],
+    "derivedMetadata": {
+      "ocr": false,
+      "transcription": false,
+      "imageSummary": false,
+      "documentTextExtraction": false
+    }
+  },
+  "fragment": {
+    "mode": "activity-plus-max-duration",
+    "idleCloseMinutes": 20,
+    "maxDurationMinutes": 60,
+    "forceCloseAtAnchor": true,
+    "allowStageRebuild": true
+  },
+  "delivery": {
+    "officialFormat": "docx",
+    "alsoGenerateOfficialMd": true,
+    "alsoGenerateOfficialDocx": true,
+    "requireDeliveryAttempt": false,
+    "requireAcknowledgement": false,
+    "replyAttachmentPreferred": true,
+    "throttleMs": 1000
+  },
+  "audit": {
+    "enabled": true,
+    "checkCoverage": true,
+    "checkAssetPointers": true,
+    "checkDeliveryLoop": true,
+    "alertOnCoverageGap": true,
+    "alertOnAssetCaptureFailure": true
+  }
+}

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+TMP="${TMPDIR:-/tmp}/raw-os-smoke.$$"
+trap 'rm -rf "$TMP"' EXIT
+mkdir -p "$TMP/workspace" "$TMP/fixtures"
+
+cat > "$TMP/config.json" <<JSON
+{
+  "schema": "raw-install-config/v1",
+  "agent": {"agentId": "smoke-agent", "agentLabel": "Smoke", "workspaceRoot": "$TMP/workspace"},
+  "time": {"timezone": "Asia/Shanghai", "anchorTime": "08:00"},
+  "mainlines": [{"name": "primary", "senderIds": ["example-user-1"], "enabled": true}],
+  "storage": {
+    "ledgerDir": "./raw-ledger",
+    "assetStoreDir": "./assets",
+    "assetRegistryDir": "./asset-registry",
+    "officialMdDir": "./raw-md",
+    "incidentDir": "./tmp/incidents",
+    "stateDir": "./tmp/state"
+  }
+}
+JSON
+
+printf 'fake image bytes\n' > "$TMP/fixtures/photo.png"
+printf 'fake voice bytes\n' > "$TMP/fixtures/voice.ogg"
+cat > "$TMP/event.json" <<JSON
+{
+  "event_id": "evt_smoke_001",
+  "timestamp": "2026-04-28T11:02:00Z",
+  "channel": "weixin",
+  "provider": "example-weixin",
+  "chat_type": "direct",
+  "chat_id": "weixin:smoke",
+  "message_id": "wx-smoke-1",
+  "session_key": "agent:example:weixin:direct",
+  "sender": {"id": "example-user-1", "label": "User"},
+  "sender_label": "你",
+  "speaker": "user",
+  "content_parts": [{"type": "text", "text": "smoke: 图和语音都要进证据链"}],
+  "attachment_refs": [
+    {"kind": "image", "local_path": "$TMP/fixtures/photo.png", "name": "photo.png"},
+    {"kind": "audio", "local_path": "$TMP/fixtures/voice.ogg", "name": "voice.ogg"},
+    {"kind": "file", "status": "expired", "uri": "telegram-temp-file:expired", "error": "media expired before capture"}
+  ],
+  "ingest_metadata": {"adapter": "smoke"}
+}
+JSON
+
+"$ROOT/scripts/raw-os" validate-config --config "$TMP/config.json" >/dev/null
+"$ROOT/scripts/raw-os" doctor --config "$TMP/config.json" >/dev/null
+"$ROOT/scripts/raw-os" init --config "$TMP/config.json" >/dev/null
+"$ROOT/scripts/raw-os" ingest-normalized --config "$TMP/config.json" --anchor-day 2026-04-28 --mainline primary --event "$TMP/event.json" >/dev/null
+"$ROOT/scripts/raw-os" render-day --config "$TMP/config.json" --anchor-day 2026-04-28 --mainline primary >/dev/null
+"$ROOT/scripts/raw-os" audit-day --config "$TMP/config.json" --anchor-day 2026-04-28 --mainline primary >/dev/null
+
+grep -q 'capture: captured' "$TMP/workspace/raw-md/2026-04-28__primary_raw.md"
+grep -q 'capture: failed' "$TMP/workspace/raw-md/2026-04-28__primary_raw.md"
+grep -q 'voice.ogg' "$TMP/workspace/raw-md/2026-04-28__primary_raw.md"
+
+echo "raw-os smoke ok"

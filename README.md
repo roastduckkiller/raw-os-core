@@ -73,6 +73,33 @@ scripts/raw-os evidence-search \
 The install is not accepted just because the repository cloned successfully.
 The acceptance line is working ledger, render, audit, and retrieval evidence.
 
+## What Does It Produce?
+
+After first install and one successful `daily` run, the target workspace should
+contain:
+
+- `raw-ledger/` - append-only source evidence events
+- `asset-registry/` - asset metadata and capture status
+- `assets/` - captured asset files when available
+- `delivery-registry/` - delivery attempts and outcomes, if delivery is enabled
+- `raw-md/` - rendered daily raw Markdown
+- `raw-docx/` - rendered official daily docx
+- `raw-memory-md/` - distilled memory projection for downstream importers
+- `tmp/raw-os-state/audits/` - audit JSON for each day/mainline
+- `tmp/raw-os-state/` - ingest checkpoints and runtime state
+- `tmp/raw-report-incidents/` - incident records when checks fail
+
+After promotion to an automated deployment, the agent may also add:
+
+- a deployment-owned wrapper script for the daily run
+- a cron/systemd/launchd schedule that runs `scripts/raw-os daily`
+- log files such as `tmp/raw-os-logs/official.log`
+- an optional delivery adapter that sends the official docx/raw-md
+- an optional operator command such as `/raw`
+
+Cron or delivery is not required for first install. First install is accepted by
+ledger, render, audit, and retrieval. Automation is promotion work.
+
 ## How Do I Use It?
 
 Humans normally do not use Raw OS directly. Ask your agent to install it and

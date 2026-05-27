@@ -70,6 +70,32 @@ scripts/raw-os evidence-search \
   --query "<known text>"
 ```
 
+## 装好以后会产出什么？
+
+首次安装并成功跑完一次 `daily` 后，目标 workspace 里应该有：
+
+- `raw-ledger/` - append-only source evidence events
+- `asset-registry/` - 资产 metadata 和 capture 状态
+- `assets/` - 成功捕获的资产文件
+- `delivery-registry/` - delivery attempts / outcomes，只有启用 delivery 时才有意义
+- `raw-md/` - 每日 raw Markdown
+- `raw-docx/` - official daily docx
+- `raw-memory-md/` - 给下游 memory importer 用的 distilled projection
+- `tmp/raw-os-state/audits/` - 每天/每条 mainline 的 audit JSON
+- `tmp/raw-os-state/` - ingest checkpoint 和运行状态
+- `tmp/raw-report-incidents/` - 检查失败时的 incident records
+
+promotion 到自动化部署后，agent 还可能加：
+
+- deployment-owned daily wrapper script
+- cron/systemd/launchd schedule，定时跑 `scripts/raw-os daily`
+- 日志文件，例如 `tmp/raw-os-logs/official.log`
+- optional delivery adapter，用来发送 official docx/raw-md
+- optional operator command，例如 `/raw`
+
+cron 和 delivery 不是首次安装的必要条件。首次安装的验收线是 ledger、render、
+audit、retrieval 跑通；自动化属于 promotion。
+
 ## 装好了怎么用？
 
 人通常不直接操作 Raw OS。正确用法是让你的 agent 安装它，并接一个 runtime

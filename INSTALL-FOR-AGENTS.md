@@ -284,7 +284,39 @@ Expected output:
 - `ingest.ingested` or `ingest.state_skipped` reflects the spool state
 - paths are under the intended workspace root
 
-## 9. Verify Evidence
+## 9. Verify Installed Artifacts
+
+After one successful `daily` run, the target workspace should contain these
+artifact lanes:
+
+```text
+raw-ledger/                 append-only source evidence events
+asset-registry/             asset metadata and capture status
+assets/                     captured asset files when available
+delivery-registry/          delivery attempts and outcomes, if delivery is enabled
+raw-md/                     rendered daily raw Markdown
+raw-docx/                   rendered official daily docx
+raw-memory-md/              distilled memory projection
+tmp/raw-os-state/audits/    audit JSON per day/mainline
+tmp/raw-os-state/           ingest checkpoints and runtime state
+tmp/raw-report-incidents/   incident records when checks fail
+```
+
+For a promoted automated deployment, also leave explicit operational artifacts:
+
+```text
+<deployment-wrapper>        owner-approved script that runs the daily command
+<scheduler-entry>           cron, systemd timer, launchd plist, or equivalent
+tmp/raw-os-logs/            scheduler/daily logs
+<delivery-adapter>          optional sender for official docx/raw-md
+<operator-command>          optional runtime command such as /raw
+```
+
+Do not mark cron, delivery, or an operator command as first-install
+requirements. First install is accepted by ledger/render/audit/retrieval.
+Automation is promotion work and should be added only after shadow acceptance.
+
+## 10. Verify Evidence
 
 Check files:
 
@@ -321,7 +353,7 @@ Acceptance:
 - delivery evidence, if present, is separate from content evidence.
 - rerunning stateful ingest does not duplicate ledger events.
 
-## 10. Shadow Soak
+## 11. Shadow Soak
 
 Before promotion, run shadow mode for at least 3 consecutive local days.
 
@@ -336,7 +368,7 @@ Daily acceptance:
 
 Do not replace an existing production raw/reporting path during the soak.
 
-## 11. Optional Automation
+## 12. Optional Automation
 
 Only after manual acceptance, add a deployment-owned wrapper and scheduler.
 
@@ -352,7 +384,7 @@ wrapper or cron line only after owner approval.
 Prefer a small checked-in wrapper script per deployment so the schedule is
 auditable.
 
-## 12. Optional Delivery
+## 13. Optional Delivery
 
 Delivery is not part of first install.
 
@@ -363,7 +395,7 @@ When enabling delivery:
 - record delivery evidence in `delivery-registry/`.
 - keep content audit separate from delivery success.
 
-## 13. Optional Operator UI
+## 14. Optional Operator UI
 
 A runtime command such as `/raw` is optional.
 
@@ -375,7 +407,7 @@ Do not use command visibility as the acceptance line. Acceptance is:
 
 Only enable an operator command after the core install is accepted.
 
-## 14. Public Repo Boundary
+## 15. Public Repo Boundary
 
 If installing from or preparing a public repo:
 
@@ -389,7 +421,7 @@ If installing from or preparing a public repo:
 Public repo is not required. Private repo or release artifact installs are
 valid when authentication is configured.
 
-## 15. Failure Handling
+## 16. Failure Handling
 
 If `doctor` fails:
 

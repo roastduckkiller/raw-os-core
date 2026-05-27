@@ -37,6 +37,68 @@ scripts/raw-os doctor --config examples/community.raw-os.example.json
 scripts/raw-os-smoke
 ```
 
+## 怎么知道装好了？
+
+Raw OS 装好不是指 repo clone 成功，而是目标 agent 能拿出这些证据：
+
+- 环境检查通过：`doctor.ok=true` 且 `fatal_count=0`
+- storage 建在预期 workspace root 下
+- normalized event spool 可以被 ingest
+- `daily` 能生成 raw-md、official docx、memory projection、audit
+- `audit.ok=true`
+- `evidence-search` 能搜回已知原文
+- `raw-replay` 能按 event id 还原已知事件
+
+最小验收命令：
+
+```bash
+scripts/raw-os validate-config --config examples/<agent-id>.raw-os.json
+scripts/raw-os doctor --config examples/<agent-id>.raw-os.json --spool /path/to/events.jsonl
+
+DAY=$(TZ=<timezone> date +%F)
+scripts/raw-os daily \
+  --config examples/<agent-id>.raw-os.json \
+  --anchor-day "$DAY" \
+  --mainline <mainline> \
+  --spool /path/to/events.jsonl \
+  --stateful
+
+scripts/raw-os evidence-search \
+  --config examples/<agent-id>.raw-os.json \
+  --anchor-day "$DAY" \
+  --mainline <mainline> \
+  --query "<known text>"
+```
+
+## 装好了怎么用？
+
+人通常不直接操作 Raw OS。正确用法是让你的 agent 安装它，并接一个 runtime
+adapter，把消息/事件写成 normalized event JSONL。
+
+之后日常链路是：
+
+```text
+runtime adapter 写 events.jsonl
+  -> agent 跑 scripts/raw-os daily
+  -> Raw OS 生成 raw-ledger、raw-md、raw-docx、raw-memory-md、audit
+  -> 需要证据或还原时，用 evidence-search / raw-replay 查询
+```
+
+常用命令：
+
+```bash
+# daily production/shadow run
+scripts/raw-os daily --config <config> --anchor-day <day> --mainline <mainline> --spool <events.jsonl> --stateful
+
+# 搜 source evidence
+scripts/raw-os evidence-search --config <config> --anchor-day <day> --mainline <mainline> --query "<text>"
+
+# 还原单个 source event
+scripts/raw-os raw-replay --config <config> --anchor-day <day> --mainline <mainline> --event-id <event-id>
+```
+
+Raw OS 不是聊天界面，不替代 memory，也不是 delivery bot。它是这些能力下面的证据层。
+
 ## 公开边界
 
 public core 只包含通用代码、schema、合成示例、文档和测试。真实部署配置、

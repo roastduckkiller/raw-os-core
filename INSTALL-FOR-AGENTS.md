@@ -183,11 +183,13 @@ RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 \
 scripts/raw-os init --config examples/<agent-id>.raw-os.json
 ```
 
-For live AD production, use the stronger guard only when explicitly approved:
+For protected production roots, configure the root list and use the stronger
+guard only when explicitly approved:
 
 ```bash
+RAW_OS_PROTECTED_WORKSPACE_ROOTS=/path/to/protected/workspace \
 RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 \
-RAW_OS_ALLOW_LIVE_AD_WORKSPACE=1 \
+RAW_OS_ALLOW_PROTECTED_WORKSPACE=1 \
 scripts/raw-os init --config examples/<agent-id>.raw-os.json
 ```
 
@@ -327,6 +329,7 @@ Daily acceptance:
 
 - inbound human events and outbound assistant events are both represented.
 - `audit.ok=true`.
+- evidence search and replay can recover a known event.
 - no unresolved incident exists under `tmp/raw-report-incidents/`.
 - spot checks match the actual channel conversation.
 - missing media or unsupported media becomes audit evidence, not silent loss.

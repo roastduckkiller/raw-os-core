@@ -37,6 +37,72 @@ scripts/raw-os doctor --config examples/community.raw-os.example.json
 scripts/raw-os-smoke
 ```
 
+## How Do I Know It Is Installed?
+
+Raw OS is installed when the target agent can show evidence for these checks:
+
+- environment check passes: `doctor.ok=true` and `fatal_count=0`
+- storage exists under the intended workspace root
+- a normalized event spool can be ingested
+- `daily` creates raw-md, official docx, memory projection, and audit output
+- `audit.ok=true`
+- `evidence-search` finds known source text
+- `raw-replay` can reconstruct a known event by event id
+
+Minimum verification commands:
+
+```bash
+scripts/raw-os validate-config --config examples/<agent-id>.raw-os.json
+scripts/raw-os doctor --config examples/<agent-id>.raw-os.json --spool /path/to/events.jsonl
+
+DAY=$(TZ=<timezone> date +%F)
+scripts/raw-os daily \
+  --config examples/<agent-id>.raw-os.json \
+  --anchor-day "$DAY" \
+  --mainline <mainline> \
+  --spool /path/to/events.jsonl \
+  --stateful
+
+scripts/raw-os evidence-search \
+  --config examples/<agent-id>.raw-os.json \
+  --anchor-day "$DAY" \
+  --mainline <mainline> \
+  --query "<known text>"
+```
+
+The install is not accepted just because the repository cloned successfully.
+The acceptance line is working ledger, render, audit, and retrieval evidence.
+
+## How Do I Use It?
+
+Humans normally do not use Raw OS directly. Ask your agent to install it and
+connect a runtime adapter that writes normalized event JSONL.
+
+After that, the normal operating loop is:
+
+```text
+runtime adapter writes events.jsonl
+  -> agent runs scripts/raw-os daily
+  -> Raw OS writes raw-ledger, raw-md, raw-docx, raw-memory-md, audit
+  -> agent uses evidence-search / raw-replay when proof or reconstruction is needed
+```
+
+Common commands:
+
+```bash
+# daily production/shadow run
+scripts/raw-os daily --config <config> --anchor-day <day> --mainline <mainline> --spool <events.jsonl> --stateful
+
+# search source evidence
+scripts/raw-os evidence-search --config <config> --anchor-day <day> --mainline <mainline> --query "<text>"
+
+# replay one source event
+scripts/raw-os raw-replay --config <config> --anchor-day <day> --mainline <mainline> --event-id <event-id>
+```
+
+Raw OS is not a chat UI, not a memory replacement, and not a delivery bot. It is
+the evidence layer underneath those features.
+
 ## Public Boundary
 
 The public core contains generic code, schemas, synthetic examples, docs, and

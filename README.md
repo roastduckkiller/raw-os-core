@@ -104,8 +104,8 @@ First-install acceptance means:
 After promotion to an automated deployment, the agent may add:
 
 - a deployment-owned wrapper script for the daily run
-- a cron/systemd/launchd schedule that runs `scripts/raw-os daily` once at the
-  chosen anchor time
+- a cron/systemd/launchd schedule that runs the daily wrapper once at the chosen
+  anchor time
 - log files such as `tmp/raw-os-logs/official.log`
 - an optional delivery adapter that sends the official docx/raw-md
 - an optional operator command such as `/raw`
@@ -113,10 +113,20 @@ After promotion to an automated deployment, the agent may add:
 Cron or delivery is not required for first install. First install is accepted by
 ledger, render, audit, and retrieval. Automation is promotion work.
 
-`scripts/raw-os daily` is a one-shot batch command, not a resident process. Do
-not run it every 30 seconds as a watchdog. For automation, the default schedule
-is once per day at the chosen anchor time. If near-real-time capture is needed,
-use a runtime adapter / spool ingest path instead of high-frequency cron.
+Keep two loops separate:
+
+- Runtime capture loop: continuously writes messages/events into the spool. It
+  can be event-driven, or it can use a lightweight adapter that polls or ingests
+  frequently.
+- Official daily loop: aggregates, renders, audits, and produces the official
+  docx/raw-md at the anchor time. This is the only loop that runs
+  `scripts/raw-os daily`.
+
+`scripts/raw-os daily` is a one-shot daily-report batch command, not a resident
+process and not a 30-second capture loop. For automated daily reporting, run it
+once per day at the chosen anchor time. If near-real-time capture is needed, use
+a runtime adapter / spool ingest path instead of high-frequency cron for
+`daily`.
 
 Raw OS does not auto-install a service during first install. During promotion,
 the agent should choose the scheduler by platform:
@@ -138,10 +148,12 @@ Example:
   service plus timer that runs the wrapper once per day. On macOS, that means a
   launchd user agent. Cron is only the portable fallback.
 
-Bad interpretation: "Raw OS installed successfully, so add a cron job every 30
-seconds to run `scripts/raw-os daily` and send files." That is wrong. `daily`
-is the daily render/audit batch. Runtime capture belongs to an adapter or spool
-ingest path.
+Bad interpretation: "There is a
+`~/Library/LaunchAgents/com.example.raw-os.daily.plist`, so change it to run
+every 30 seconds." That is wrong. A `daily` launchd plist is the official daily
+loop, so it should run once per anchor day, for example at 08:00. Any 30-second
+processing belongs to a separate runtime capture adapter / spool ingest job, not
+to the daily wrapper.
 
 The wrapper is a small shell script owned by the deployment. It records the
 repo path, config path, mainline, spool path, timezone, and the exact

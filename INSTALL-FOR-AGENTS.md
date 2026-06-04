@@ -316,11 +316,20 @@ Do not mark cron, delivery, or an operator command as first-install
 requirements. First install is accepted by ledger/render/audit/retrieval.
 Automation is promotion work and should be added only after shadow acceptance.
 
-`scripts/raw-os daily` is a one-shot batch command. It is not a resident
-watchdog, and it should not be scheduled every 30 seconds. During promotion,
-schedule it at the chosen daily anchor time. If the deployment needs
-near-real-time capture, wire a runtime adapter / spool ingest path separately;
-do not simulate that by high-frequency cron.
+Keep two loops separate:
+
+- Runtime capture loop: continuously writes messages/events into the normalized
+  event spool. It can be event-driven, or it can use a lightweight adapter that
+  polls or ingests frequently.
+- Official daily loop: aggregates, renders, audits, and produces the official
+  docx/raw-md at the anchor time. This loop runs `scripts/raw-os daily`.
+
+`scripts/raw-os daily` is a one-shot daily-report batch command. It is not a
+resident watchdog and it is not the 30-second capture loop. During promotion,
+schedule the daily wrapper at the chosen daily anchor time, usually once per
+day. If the deployment needs near-real-time capture, wire a runtime adapter /
+spool ingest path separately; do not simulate that by high-frequency cron for
+`daily`.
 
 Concrete examples:
 
@@ -338,9 +347,15 @@ Wrong implementation:
 */30 * * * * scripts/raw-os daily ...
 ```
 
-That is wrong because `daily` is the daily render/audit batch, not the runtime
-capture loop. Near-real-time capture must be implemented as an adapter or spool
-ingest path.
+That is wrong because `daily` is the official daily render/audit batch, not the
+runtime capture loop. Near-real-time capture must be implemented as an adapter
+or spool ingest path.
+
+Also wrong: finding a launchd file such as
+`~/Library/LaunchAgents/com.example.raw-os.daily.plist` and changing it to
+`StartInterval=30`. A `daily` plist should run the daily wrapper once per
+anchor day, for example at 08:00. If 30-second processing is needed, create a
+separate capture/ingest job with a separate name and command.
 
 ## 10. Verify Evidence
 
@@ -458,7 +473,13 @@ choices into one stable command. Replace:
 - `LOG_DIR` with a writable operational log directory.
 
 The scheduler does not know Raw OS details. It only runs this wrapper at the
-chosen time. The wrapper owns paths, environment, and the exact `daily` command.
+chosen daily-report time. The wrapper owns paths, environment, and the exact
+`daily` command.
+
+Do not use this wrapper for runtime capture. If the deployment needs a
+30-second or event-driven capture path, create a separate command such as a
+runtime adapter or `scripts/raw-os ingest-spool ...`; that separate job writes
+the spool that the daily wrapper later consumes.
 
 Example Linux deployment wrapper:
 

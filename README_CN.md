@@ -99,7 +99,7 @@ scripts/raw-os evidence-search \
 转入自动化部署后，agent 才可能加：
 
 - 部署方自有的 daily 封装脚本
-- cron/systemd/launchd 调度配置，在固定时间跑一次 `scripts/raw-os daily`
+- cron/systemd/launchd 调度配置，在固定时间跑一次 daily 封装脚本
 - 日志文件，例如 `tmp/raw-os-logs/official.log`
 - 可选的投递适配器，用来发送 official docx/raw-md
 - 可选的操作命令，例如 `/raw`
@@ -107,10 +107,16 @@ scripts/raw-os evidence-search \
 cron 和 delivery 不是首次安装的必要条件。首次安装的验收线是 ledger、render、
 audit、retrieval 跑通；自动化部署是下一阶段，不属于首次安装。
 
-`scripts/raw-os daily` 是一次性批处理命令，不是常驻进程。不要为了
-“守护”而每 30 秒跑一次 daily。需要自动化时，默认是每天锚点时间跑一次；
-如果未来要近实时捕获，应另接运行时适配器 / spool ingest 路径，而不是用
-cron 高频重跑 daily。
+这里必须分成两条链路：
+
+- 运行时捕获链路：负责把消息/事件持续写入 spool。它可以是事件触发，也可以由轻量
+  adapter 高频轮询或定时 ingest。
+- 正式日报链路：负责在锚点时间汇总、渲染、audit、生成 official docx/raw-md。
+  它只跑 `scripts/raw-os daily`。
+
+`scripts/raw-os daily` 是一次性日报批处理命令，不是常驻进程，也不是 30 秒捕获循环。
+需要自动化日报时，默认每天锚点时间跑一次；如果要近实时捕获，应另接运行时适配器 /
+spool ingest 路径，而不是用 cron 高频重跑 daily。
 
 Raw OS 首次安装时不会自动安装 service。转入自动化部署时，由 agent 按平台选择：
 
@@ -130,9 +136,10 @@ agent 应先展示生成的封装脚本、调度器文件/行、日志路径、�
   Linux 且有 systemd 时，用用户级 service + timer 每天跑一次封装脚本；
   macOS 用 launchd user agent；cron 只是便携 fallback。
 
-错误理解：Raw OS 装好了，所以每 30 秒 cron 一次 `scripts/raw-os daily`，顺便发文件。
-这不对。`daily` 是每日 render/audit 批处理；运行时捕获应该走适配器或 spool
-ingest 路径。
+错误理解：看到 `~/Library/LaunchAgents/com.example.raw-os.daily.plist`，
+就把它改成每 30 秒执行一次。这不对。这个文件名里的 `daily` 就表示正式日报链路，
+应该每天锚点时间触发一次，例如每天 08:00。中间的 30 秒处理如果需要，只能属于
+运行时捕获链路，应另建 adapter / spool ingest 任务，不能复用 daily 封装脚本。
 
 封装脚本就是部署方自己拥有的一小段命令脚本。它把 repo 路径、
 config 路径、mainline、spool 路径、timezone 和准确的 `scripts/raw-os daily`

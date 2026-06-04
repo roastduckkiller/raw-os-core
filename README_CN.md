@@ -134,6 +134,31 @@ rollback command，再启用自动化。
 这不对。`daily` 是每日 render/audit batch；runtime capture 应该走 adapter 或 spool
 ingest。
 
+wrapper 就是部署方自己拥有的一小段 shell script。它把 repo path、config path、
+mainline、spool path、timezone 和准确的 `scripts/raw-os daily` 命令固定下来。
+scheduler 只负责在指定时间运行这个 wrapper，不负责理解 Raw OS。
+
+最小 wrapper 形状：
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+RAW_OS_DIR="/path/to/raw-os"
+CONFIG="$RAW_OS_DIR/examples/<agent-id>.raw-os.json"
+MAINLINE="<mainline>"
+SPOOL="/path/to/events.jsonl"
+TIMEZONE="<timezone>"
+
+cd "$RAW_OS_DIR"
+DAY="$(TZ="$TIMEZONE" date +%F)"
+exec scripts/raw-os daily \
+  --config "$CONFIG" \
+  --anchor-day "$DAY" \
+  --mainline "$MAINLINE" \
+  --spool "$SPOOL" \
+  --stateful
+```
+
 ## 装好了怎么用？
 
 人通常不直接操作 Raw OS。正确用法是让你的 agent 安装它，并接一个 runtime

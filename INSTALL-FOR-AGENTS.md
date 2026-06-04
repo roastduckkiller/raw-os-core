@@ -428,13 +428,59 @@ Required wrapper shape:
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
-cd /path/to/raw-os
-DAY="$(TZ=<timezone> date +%F)"
+RAW_OS_DIR="/path/to/raw-os"
+CONFIG="$RAW_OS_DIR/examples/<agent-id>.raw-os.json"
+MAINLINE="<mainline>"
+SPOOL="/path/to/events.jsonl"
+TIMEZONE="<timezone>"
+LOG_DIR="/path/to/workspace/tmp/raw-os-logs"
+
+mkdir -p "$LOG_DIR"
+cd "$RAW_OS_DIR"
+DAY="$(TZ="$TIMEZONE" date +%F)"
+
 exec scripts/raw-os daily \
-  --config examples/<agent-id>.raw-os.json \
+  --config "$CONFIG" \
   --anchor-day "$DAY" \
-  --mainline <mainline> \
-  --spool /path/to/events.jsonl \
+  --mainline "$MAINLINE" \
+  --spool "$SPOOL" \
+  --stateful
+```
+
+The wrapper is just a deployment-owned shell script that turns deployment
+choices into one stable command. Replace:
+
+- `RAW_OS_DIR` with the repo path on that machine.
+- `CONFIG` with that deployment's config file.
+- `MAINLINE` with the conversation/mainline id to render.
+- `SPOOL` with the normalized event JSONL path written by the adapter.
+- `TIMEZONE` with the local anchor timezone, for example `Asia/Shanghai`.
+- `LOG_DIR` with a writable operational log directory.
+
+The scheduler does not know Raw OS details. It only runs this wrapper at the
+chosen time. The wrapper owns paths, environment, and the exact `daily` command.
+
+Example Linux deployment wrapper:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+RAW_OS_DIR="$HOME/.openclaw/workspace/raw-os"
+CONFIG="$RAW_OS_DIR/examples/community.raw-os.example.json"
+MAINLINE="sheng-shu"
+SPOOL="$HOME/.openclaw/workspace/tmp/raw-os-events.jsonl"
+TIMEZONE="Asia/Shanghai"
+LOG_DIR="$HOME/.openclaw/workspace/tmp/raw-os-logs"
+
+mkdir -p "$LOG_DIR"
+cd "$RAW_OS_DIR"
+DAY="$(TZ="$TIMEZONE" date +%F)"
+
+exec scripts/raw-os daily \
+  --config "$CONFIG" \
+  --anchor-day "$DAY" \
+  --mainline "$MAINLINE" \
+  --spool "$SPOOL" \
   --stateful
 ```
 

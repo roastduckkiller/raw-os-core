@@ -143,6 +143,32 @@ seconds to run `scripts/raw-os daily` and send files." That is wrong. `daily`
 is the daily render/audit batch. Runtime capture belongs to an adapter or spool
 ingest path.
 
+The wrapper is a small shell script owned by the deployment. It records the
+repo path, config path, mainline, spool path, timezone, and the exact
+`scripts/raw-os daily` command. The scheduler only runs that wrapper at the
+chosen time.
+
+Minimal wrapper shape:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+RAW_OS_DIR="/path/to/raw-os"
+CONFIG="$RAW_OS_DIR/examples/<agent-id>.raw-os.json"
+MAINLINE="<mainline>"
+SPOOL="/path/to/events.jsonl"
+TIMEZONE="<timezone>"
+
+cd "$RAW_OS_DIR"
+DAY="$(TZ="$TIMEZONE" date +%F)"
+exec scripts/raw-os daily \
+  --config "$CONFIG" \
+  --anchor-day "$DAY" \
+  --mainline "$MAINLINE" \
+  --spool "$SPOOL" \
+  --stateful
+```
+
 ## How Do I Use It?
 
 Humans normally do not use Raw OS directly. Ask your agent to install it and

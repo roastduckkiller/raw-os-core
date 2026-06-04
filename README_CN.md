@@ -220,6 +220,7 @@ private runtime snapshot 都不属于 public core。
 - `INSTALL.md` - 给人看的安装入口
 - `INSTALL-FOR-AGENTS.md` - 给 agent 看的安装 runbook
 - `docs/requirements.md` - 部署环境要求
+- `docs/architecture/` - Raw OS 架构与 memory layering 决策
 - `docs/publish-audit.md` - 公开发布前清理清单
 - `docs/naming.md` - 命名边界
 

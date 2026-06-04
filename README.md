@@ -235,6 +235,7 @@ See `docs/publish-audit.md` before publishing a repo or release artifact.
 - `INSTALL.md` - human-facing install entrypoint
 - `INSTALL-FOR-AGENTS.md` - agent-facing install runbook
 - `docs/requirements.md` - deployment environment requirements
+- `docs/architecture/` - Raw OS architecture and memory layering decisions
 - `docs/publish-audit.md` - public release sanitization checklist
 - `docs/naming.md` - naming and terminology boundary
 

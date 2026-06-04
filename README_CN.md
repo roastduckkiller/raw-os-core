@@ -85,9 +85,9 @@ scripts/raw-os evidence-search \
 - `tmp/raw-os-state/` - ingest checkpoint 和运行状态
 - `tmp/raw-report-incidents/` - 检查失败时的 incident records
 
-### 首次安装 vs 自动化 promotion
+### 首次安装 vs 转入自动化部署
 
-首次安装只证明 Raw OS core 能跑通。它不是 daemon，也不会安装守护进程。
+首次安装只证明 Raw OS 核心链路能跑通。它不是常驻服务，也不会安装守护进程。
 
 首次安装的验收线：
 
@@ -96,49 +96,49 @@ scripts/raw-os evidence-search \
 - audit 通过
 - evidence search / replay 能找回证据
 
-promotion 到自动化部署后，agent 才可能加：
+转入自动化部署后，agent 才可能加：
 
-- deployment-owned daily wrapper script
-- cron/systemd/launchd schedule，在固定时间跑一次 `scripts/raw-os daily`
+- 部署方自有的 daily 封装脚本
+- cron/systemd/launchd 调度配置，在固定时间跑一次 `scripts/raw-os daily`
 - 日志文件，例如 `tmp/raw-os-logs/official.log`
-- optional delivery adapter，用来发送 official docx/raw-md
-- optional operator command，例如 `/raw`
+- 可选的投递适配器，用来发送 official docx/raw-md
+- 可选的操作命令，例如 `/raw`
 
 cron 和 delivery 不是首次安装的必要条件。首次安装的验收线是 ledger、render、
-audit、retrieval 跑通；自动化属于 promotion。
+audit、retrieval 跑通；自动化部署是下一阶段，不属于首次安装。
 
-`scripts/raw-os daily` 是一次性 batch command，不是常驻进程。不要为了
-“守护”而每 30 秒跑一次 daily。需要自动化时，默认是每天 anchor time 跑一次；
-如果未来要近实时 capture，应另接 runtime adapter / spool ingest，而不是用
+`scripts/raw-os daily` 是一次性批处理命令，不是常驻进程。不要为了
+“守护”而每 30 秒跑一次 daily。需要自动化时，默认是每天锚点时间跑一次；
+如果未来要近实时捕获，应另接运行时适配器 / spool ingest 路径，而不是用
 cron 高频重跑 daily。
 
-Raw OS 首次安装时不会自动安装 service。promotion 阶段由 agent 按平台选择：
+Raw OS 首次安装时不会自动安装 service。转入自动化部署时，由 agent 按平台选择：
 
 - macOS：`launchd` user agent
 - Linux 且有 systemd：user-level `systemd` service + timer
 - 便携 fallback：`cron`
 
-agent 应先展示生成的 wrapper、scheduler 文件/行、log path、enable command、
-rollback command，再启用自动化。
+agent 应先展示生成的封装脚本、调度器文件/行、日志路径、启用命令、
+回滚命令，再启用自动化。
 
 例子：
 
-- 首次安装：跑 `init`，写入或 ingest 一条 sample normalized event，手动跑一次
+- 首次安装：跑 `init`，写入或 ingest 一条示例 normalized event，手动跑一次
   `scripts/raw-os daily`，然后验 ledger/render/audit/retrieval。到这里就结束。
   不安装 cron、systemd、launchd、delivery，也不加 `/raw`。
-- promotion 后的自动化部署：shadow acceptance 通过后，才加一个 owner-approved
-  wrapper 和一个平台 scheduler。Linux 且有 systemd 时，用 user-level service +
-  timer 每天跑一次 wrapper；macOS 用 launchd user agent；cron 只是便携 fallback。
+- 转入自动化部署：影子验收通过、负责人批准后，才加一个部署封装脚本和一个平台调度器。
+  Linux 且有 systemd 时，用用户级 service + timer 每天跑一次封装脚本；
+  macOS 用 launchd user agent；cron 只是便携 fallback。
 
 错误理解：Raw OS 装好了，所以每 30 秒 cron 一次 `scripts/raw-os daily`，顺便发文件。
-这不对。`daily` 是每日 render/audit batch；runtime capture 应该走 adapter 或 spool
-ingest。
+这不对。`daily` 是每日 render/audit 批处理；运行时捕获应该走适配器或 spool
+ingest 路径。
 
-wrapper 就是部署方自己拥有的一小段 shell script。它把 repo path、config path、
-mainline、spool path、timezone 和准确的 `scripts/raw-os daily` 命令固定下来。
-scheduler 只负责在指定时间运行这个 wrapper，不负责理解 Raw OS。
+封装脚本就是部署方自己拥有的一小段命令脚本。它把 repo 路径、
+config 路径、mainline、spool 路径、timezone 和准确的 `scripts/raw-os daily`
+命令固定下来。调度器只负责在指定时间运行这个封装脚本，不负责理解 Raw OS。
 
-最小 wrapper 形状：
+最小封装脚本形状：
 
 ```bash
 #!/usr/bin/env bash

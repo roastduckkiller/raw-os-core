@@ -107,16 +107,22 @@ scripts/raw-os evidence-search \
 cron 和 delivery 不是首次安装的必要条件。首次安装的验收线是 ledger、render、
 audit、retrieval 跑通；自动化部署是下一阶段，不属于首次安装。
 
-这里必须分成两条链路：
+这里必须分成两条链路。先看正向方案：
 
-- 运行时捕获链路：负责把消息/事件持续写入 spool。它可以是事件触发，也可以由轻量
-  adapter 高频轮询或定时 ingest。
+- 运行时捕获链路：负责把消息/事件持续写入 spool，并定期或事件触发地执行
+  `scripts/raw-os ingest-spool --stateful`。推荐先用低频 tick，例如每 10 分钟一次；
+  如果平台支持消息 hook，则由 adapter 事件触发写入 spool。
 - 正式日报链路：负责在锚点时间汇总、渲染、audit、生成 official docx/raw-md。
-  它只跑 `scripts/raw-os daily`。
+  它只在每天锚点时间跑一次 `scripts/raw-os daily`，例如 08:00。
 
-`scripts/raw-os daily` 是一次性日报批处理命令，不是常驻进程，也不是 30 秒捕获循环。
-需要自动化日报时，默认每天锚点时间跑一次；如果要近实时捕获，应另接运行时适配器 /
-spool ingest 路径，而不是用 cron 高频重跑 daily。
+推荐 cron 形状：
+
+```cron
+*/10 * * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os ingest-spool --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> --spool /path/to/workspace/tmp/raw-os-runtime-tap.jsonl --stateful >> /path/to/workspace/tmp/raw-os-logs/tick.log 2>&1
+0 8 * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os daily --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> >> /path/to/workspace/tmp/raw-os-logs/official.log 2>&1
+```
+
+也就是说，新增内容由 capture/ingest 链路处理；official raw 由每天 08:00 的日报链路生成。
 
 Raw OS 首次安装时不会自动安装 service。转入自动化部署时，由 agent 按平台选择：
 
@@ -136,10 +142,8 @@ agent 应先展示生成的封装脚本、调度器文件/行、日志路径、�
   Linux 且有 systemd 时，用用户级 service + timer 每天跑一次封装脚本；
   macOS 用 launchd user agent；cron 只是便携 fallback。
 
-错误理解：看到 `~/Library/LaunchAgents/com.example.raw-os.daily.plist`，
-就把它改成每 30 秒执行一次。这不对。这个文件名里的 `daily` 就表示正式日报链路，
-应该每天锚点时间触发一次，例如每天 08:00。中间的 30 秒处理如果需要，只能属于
-运行时捕获链路，应另建 adapter / spool ingest 任务，不能复用 daily 封装脚本。
+避免一个常见误装：不要把 `daily` 调度器改成几十秒一次；需要更快捕获时，另建
+capture/ingest 任务。
 
 封装脚本就是部署方自己拥有的一小段命令脚本。它把 repo 路径、
 config 路径、mainline、spool 路径、timezone 和准确的 `scripts/raw-os daily`

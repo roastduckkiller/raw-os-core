@@ -319,17 +319,23 @@ Automation is promotion work and should be added only after shadow acceptance.
 Keep two loops separate:
 
 - Runtime capture loop: continuously writes messages/events into the normalized
-  event spool. It can be event-driven, or it can use a lightweight adapter that
-  polls or ingests frequently.
+  event spool and runs `scripts/raw-os ingest-spool --stateful` on a timer or
+  from an event hook. Start with a low-frequency tick, for example every 10
+  minutes. If the platform supports message hooks, use an adapter to append
+  events into the spool.
 - Official daily loop: aggregates, renders, audits, and produces the official
-  docx/raw-md at the anchor time. This loop runs `scripts/raw-os daily`.
+  docx/raw-md at the anchor time. This loop runs `scripts/raw-os daily` once per
+  anchor day, for example at 08:00.
 
-`scripts/raw-os daily` is a one-shot daily-report batch command. It is not a
-resident watchdog and it is not the 30-second capture loop. During promotion,
-schedule the daily wrapper at the chosen daily anchor time, usually once per
-day. If the deployment needs near-real-time capture, wire a runtime adapter /
-spool ingest path separately; do not simulate that by high-frequency cron for
-`daily`.
+Recommended cron shape:
+
+```cron
+*/10 * * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os ingest-spool --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> --spool /path/to/workspace/tmp/raw-os-runtime-tap.jsonl --stateful >> /path/to/workspace/tmp/raw-os-logs/tick.log 2>&1
+0 8 * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os daily --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> >> /path/to/workspace/tmp/raw-os-logs/official.log 2>&1
+```
+
+In short: capture/ingest handles new content; the 08:00 official daily loop
+creates the official raw output.
 
 Concrete examples:
 
@@ -341,21 +347,9 @@ Concrete examples:
   service plus timer. macOS uses a launchd user agent. Cron is the portable
   fallback.
 
-Wrong implementation:
-
-```text
-*/30 * * * * scripts/raw-os daily ...
-```
-
-That is wrong because `daily` is the official daily render/audit batch, not the
-runtime capture loop. Near-real-time capture must be implemented as an adapter
-or spool ingest path.
-
-Also wrong: finding a launchd file such as
-`~/Library/LaunchAgents/com.example.raw-os.daily.plist` and changing it to
-`StartInterval=30`. A `daily` plist should run the daily wrapper once per
-anchor day, for example at 08:00. If 30-second processing is needed, create a
-separate capture/ingest job with a separate name and command.
+Avoid one common misconfiguration: do not make the `daily` scheduler run every
+few seconds. If faster capture is needed, create a separate capture/ingest job
+with a separate name and command.
 
 ## 10. Verify Evidence
 

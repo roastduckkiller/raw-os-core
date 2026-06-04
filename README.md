@@ -113,20 +113,25 @@ After promotion to an automated deployment, the agent may add:
 Cron or delivery is not required for first install. First install is accepted by
 ledger, render, audit, and retrieval. Automation is promotion work.
 
-Keep two loops separate:
+Keep two loops separate. Start from the positive deployment shape:
 
-- Runtime capture loop: continuously writes messages/events into the spool. It
-  can be event-driven, or it can use a lightweight adapter that polls or ingests
-  frequently.
+- Runtime capture loop: continuously writes messages/events into the spool and
+  runs `scripts/raw-os ingest-spool --stateful` on a timer or from an event hook.
+  Start with a low-frequency tick, for example every 10 minutes. If the platform
+  supports message hooks, use an adapter to append events into the spool.
 - Official daily loop: aggregates, renders, audits, and produces the official
-  docx/raw-md at the anchor time. This is the only loop that runs
-  `scripts/raw-os daily`.
+  docx/raw-md at the anchor time. It runs `scripts/raw-os daily` once per anchor
+  day, for example at 08:00.
 
-`scripts/raw-os daily` is a one-shot daily-report batch command, not a resident
-process and not a 30-second capture loop. For automated daily reporting, run it
-once per day at the chosen anchor time. If near-real-time capture is needed, use
-a runtime adapter / spool ingest path instead of high-frequency cron for
-`daily`.
+Recommended cron shape:
+
+```cron
+*/10 * * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os ingest-spool --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> --spool /path/to/workspace/tmp/raw-os-runtime-tap.jsonl --stateful >> /path/to/workspace/tmp/raw-os-logs/tick.log 2>&1
+0 8 * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os daily --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> >> /path/to/workspace/tmp/raw-os-logs/official.log 2>&1
+```
+
+In short: capture/ingest handles new content; the 08:00 official daily loop
+creates the official raw output.
 
 Raw OS does not auto-install a service during first install. During promotion,
 the agent should choose the scheduler by platform:
@@ -148,12 +153,8 @@ Example:
   service plus timer that runs the wrapper once per day. On macOS, that means a
   launchd user agent. Cron is only the portable fallback.
 
-Bad interpretation: "There is a
-`~/Library/LaunchAgents/com.example.raw-os.daily.plist`, so change it to run
-every 30 seconds." That is wrong. A `daily` launchd plist is the official daily
-loop, so it should run once per anchor day, for example at 08:00. Any 30-second
-processing belongs to a separate runtime capture adapter / spool ingest job, not
-to the daily wrapper.
+Avoid one common misconfiguration: do not make the `daily` scheduler run every
+few seconds. If faster capture is needed, create a separate capture/ingest job.
 
 The wrapper is a small shell script owned by the deployment. It records the
 repo path, config path, mainline, spool path, timezone, and the exact

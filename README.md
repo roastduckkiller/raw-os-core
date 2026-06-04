@@ -104,8 +104,9 @@ First-install acceptance means:
 After promotion to an automated deployment, the agent may add:
 
 - a deployment-owned wrapper script for the daily run
-- a cron/systemd/launchd schedule that runs the daily wrapper once at the chosen
-  anchor time
+- a platform scheduler that runs the daily wrapper once at the chosen anchor
+  time: `launchd` on macOS, user-level `systemd` service + timer on Linux, or
+  cron only as a portable fallback
 - log files such as `tmp/raw-os-logs/official.log`
 - an optional delivery adapter that sends the official docx/raw-md
 - an optional operator command such as `/raw`
@@ -123,7 +124,15 @@ Keep two loops separate. Start from the positive deployment shape:
   docx/raw-md at the anchor time. It runs `scripts/raw-os daily` once per anchor
   day, for example at 08:00.
 
-Recommended cron shape:
+Production scheduler choice:
+
+- macOS: prefer a `launchd` user agent. It is the stable user-level service layer
+  on macOS and is more reliable and observable than cron for Raw OS automation.
+- Linux with systemd: prefer a user-level `systemd` service + timer.
+- portable fallback: use `cron` only when the platform does not provide a better
+  user-level scheduler.
+
+Cron fallback shape:
 
 ```cron
 */10 * * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os ingest-spool --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> --spool /path/to/workspace/tmp/raw-os-runtime-tap.jsonl --stateful >> /path/to/workspace/tmp/raw-os-logs/tick.log 2>&1

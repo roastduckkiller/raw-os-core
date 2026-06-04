@@ -99,7 +99,8 @@ scripts/raw-os evidence-search \
 转入自动化部署后，agent 才可能加：
 
 - 部署方自有的 daily 封装脚本
-- cron/systemd/launchd 调度配置，在固定时间跑一次 daily 封装脚本
+- 平台调度配置，在固定时间跑一次 daily 封装脚本：macOS 用 `launchd`，
+  Linux 且有 systemd 时用用户级 `systemd` service + timer，cron 只作为便携 fallback
 - 日志文件，例如 `tmp/raw-os-logs/official.log`
 - 可选的投递适配器，用来发送 official docx/raw-md
 - 可选的操作命令，例如 `/raw`
@@ -115,7 +116,14 @@ audit、retrieval 跑通；自动化部署是下一阶段，不属于首次安�
 - 正式日报链路：负责在锚点时间汇总、渲染、audit、生成 official docx/raw-md。
   它只在每天锚点时间跑一次 `scripts/raw-os daily`，例如 08:00。
 
-推荐 cron 形状：
+生产调度器优先级：
+
+- macOS：优先 `launchd` user agent。这是 macOS 上更稳定、日志更清楚的用户级服务层，
+  比 cron 更适合托住 Raw OS 自动化。
+- Linux 且有 systemd：优先 user-level `systemd` service + timer。
+- 便携 fallback：只有平台没有更好的用户级调度器时，才用 `cron`。
+
+cron fallback 形状：
 
 ```cron
 */10 * * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os ingest-spool --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> --spool /path/to/workspace/tmp/raw-os-runtime-tap.jsonl --stateful >> /path/to/workspace/tmp/raw-os-logs/tick.log 2>&1

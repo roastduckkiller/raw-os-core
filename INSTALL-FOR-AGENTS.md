@@ -306,7 +306,7 @@ For a promoted automated deployment, also leave explicit operational artifacts:
 
 ```text
 <deployment-wrapper>        owner-approved script that runs the daily command
-<scheduler-entry>           cron, systemd timer, launchd plist, or equivalent
+<scheduler-entry>           systemd timer, launchd plist, cron fallback, or equivalent
 tmp/raw-os-logs/            scheduler/daily logs
 <delivery-adapter>          optional sender for official docx/raw-md
 <operator-command>          optional runtime command such as /raw
@@ -327,7 +327,16 @@ Keep two loops separate:
   docx/raw-md at the anchor time. This loop runs `scripts/raw-os daily` once per
   anchor day, for example at 08:00.
 
-Recommended cron shape:
+Production scheduler choice:
+
+- macOS: prefer a `launchd` user agent. This is the stable user-level service
+  layer on macOS and is more reliable and observable than cron for long-running
+  Raw OS automation.
+- Linux with systemd: prefer a user-level `systemd` service + timer.
+- Minimal Linux / portable fallback: use `cron` only when the platform does not
+  provide a better user-level scheduler.
+
+Cron fallback shape:
 
 ```cron
 */10 * * * * cd /path/to/raw-os && RAW_OS_ALLOW_OPENCLAW_WORKSPACE=1 scripts/raw-os ingest-spool --config examples/<agent-id>.raw-os.json --anchor-day "$(TZ=Asia/Shanghai date +\%F)" --mainline <mainline> --spool /path/to/workspace/tmp/raw-os-runtime-tap.jsonl --stateful >> /path/to/workspace/tmp/raw-os-logs/tick.log 2>&1

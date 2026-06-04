@@ -89,16 +89,34 @@ contain:
 - `tmp/raw-os-state/` - ingest checkpoints and runtime state
 - `tmp/raw-report-incidents/` - incident records when checks fail
 
-After promotion to an automated deployment, the agent may also add:
+### First Install vs Automated Promotion
+
+First install only proves the Raw OS core works. It is not a daemon and it does
+not install a service.
+
+First-install acceptance means:
+
+- normalized events can enter `raw-ledger/`
+- `scripts/raw-os daily` can render outputs
+- audit passes
+- evidence search / replay can recover source evidence
+
+After promotion to an automated deployment, the agent may add:
 
 - a deployment-owned wrapper script for the daily run
-- a cron/systemd/launchd schedule that runs `scripts/raw-os daily`
+- a cron/systemd/launchd schedule that runs `scripts/raw-os daily` once at the
+  chosen anchor time
 - log files such as `tmp/raw-os-logs/official.log`
 - an optional delivery adapter that sends the official docx/raw-md
 - an optional operator command such as `/raw`
 
 Cron or delivery is not required for first install. First install is accepted by
 ledger, render, audit, and retrieval. Automation is promotion work.
+
+`scripts/raw-os daily` is a one-shot batch command, not a resident process. Do
+not run it every 30 seconds as a watchdog. For automation, the default schedule
+is once per day at the chosen anchor time. If near-real-time capture is needed,
+use a runtime adapter / spool ingest path instead of high-frequency cron.
 
 Raw OS does not auto-install a service during first install. During promotion,
 the agent should choose the scheduler by platform:
@@ -109,6 +127,21 @@ the agent should choose the scheduler by platform:
 
 The agent should show the generated wrapper, scheduler file/line, log path,
 enable command, and rollback command before enabling automation.
+
+Example:
+
+- First install: run `init`, append or ingest one sample normalized event, run
+  `scripts/raw-os daily` once by hand, then verify ledger/render/audit/retrieval.
+  Stop there. Do not install cron, systemd, launchd, delivery, or `/raw`.
+- Promoted deployment: after shadow acceptance, add one owner-approved wrapper
+  and one platform scheduler. On Linux with systemd, that means a user-level
+  service plus timer that runs the wrapper once per day. On macOS, that means a
+  launchd user agent. Cron is only the portable fallback.
+
+Bad interpretation: "Raw OS installed successfully, so add a cron job every 30
+seconds to run `scripts/raw-os daily` and send files." That is wrong. `daily`
+is the daily render/audit batch. Runtime capture belongs to an adapter or spool
+ingest path.
 
 ## How Do I Use It?
 

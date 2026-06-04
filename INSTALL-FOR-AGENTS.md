@@ -316,6 +316,32 @@ Do not mark cron, delivery, or an operator command as first-install
 requirements. First install is accepted by ledger/render/audit/retrieval.
 Automation is promotion work and should be added only after shadow acceptance.
 
+`scripts/raw-os daily` is a one-shot batch command. It is not a resident
+watchdog, and it should not be scheduled every 30 seconds. During promotion,
+schedule it at the chosen daily anchor time. If the deployment needs
+near-real-time capture, wire a runtime adapter / spool ingest path separately;
+do not simulate that by high-frequency cron.
+
+Concrete examples:
+
+- First install only: run `init`, write or ingest one sample normalized event,
+  run `scripts/raw-os daily` once by hand, verify ledger/render/audit/retrieval,
+  and stop. Do not install cron, systemd, launchd, delivery, or `/raw`.
+- Promoted automated deployment: after shadow acceptance and owner approval,
+  add one wrapper plus one scheduler. Linux with systemd uses a user-level
+  service plus timer. macOS uses a launchd user agent. Cron is the portable
+  fallback.
+
+Wrong implementation:
+
+```text
+*/30 * * * * scripts/raw-os daily ...
+```
+
+That is wrong because `daily` is the daily render/audit batch, not the runtime
+capture loop. Near-real-time capture must be implemented as an adapter or spool
+ingest path.
+
 ## 10. Verify Evidence
 
 Check files:
@@ -392,6 +418,10 @@ workspace first. Show the owner:
 
 Do not run `launchctl load`, `systemctl enable`, or `crontab` until the owner
 approves the exact generated files/line.
+
+Promotion means the deployment owner has accepted the shadow output and wants
+Raw OS to run automatically on that machine. It is not part of first install,
+and it is not a generic "make it run constantly" step.
 
 Required wrapper shape:
 

@@ -322,7 +322,7 @@ def strip_openclaw_embedded_file_bodies(text: str) -> str:
     keeps the human message plus stable asset pointers instead.
     """
     cleaned = re.sub(r"\n?<file\b[^>]*>.*?</file>", "", text or "", flags=re.S | re.I)
-    cleaned = re.sub(r"^\[media attached:[^\n]*\]\n?", "", cleaned, flags=re.M)
+    cleaned = re.sub(r"^\[media attached(?:\s+\d+/\d+)?:[^\n]*\]\n?", "", cleaned, flags=re.M)
     return cleaned.strip()
 
 
@@ -331,6 +331,7 @@ def attachment_refs_from_openclaw_text(text: str) -> List[Dict[str, Any]]:
 
     OpenClaw renders inbound files into text parts as lines like:
     [media attached: /abs/path/file.md (text/markdown) | /abs/path/file.md]
+    [media attached 1/2: /abs/path/file.jpg (image/jpeg) | /abs/path/file.jpg]
 
     Raw OS treats those paths as evidence assets and copies them into the
     content-addressed asset store. Missing/unreadable paths are still returned
@@ -338,7 +339,7 @@ def attachment_refs_from_openclaw_text(text: str) -> List[Dict[str, Any]]:
     """
     refs: List[Dict[str, Any]] = []
     seen = set()
-    pattern = re.compile(r"\[media attached:\s*(?P<label>.*?)(?:\s*\((?P<mime>[^)]*)\))?\s*\|\s*(?P<path>[^\]]+)\]", re.I)
+    pattern = re.compile(r"\[media attached(?:\s+\d+/\d+)?:\s*(?P<label>.*?)(?:\s*\((?P<mime>[^)]*)\))?\s*\|\s*(?P<path>[^\]]+)\]", re.I)
     for match in pattern.finditer(text or ""):
         raw_path = match.group("path").strip()
         label = match.group("label").strip()

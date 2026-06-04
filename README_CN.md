@@ -85,16 +85,32 @@ scripts/raw-os evidence-search \
 - `tmp/raw-os-state/` - ingest checkpoint 和运行状态
 - `tmp/raw-report-incidents/` - 检查失败时的 incident records
 
-promotion 到自动化部署后，agent 还可能加：
+### 首次安装 vs 自动化 promotion
+
+首次安装只证明 Raw OS core 能跑通。它不是 daemon，也不会安装守护进程。
+
+首次安装的验收线：
+
+- normalized event 能进入 `raw-ledger/`
+- `scripts/raw-os daily` 能完成 render
+- audit 通过
+- evidence search / replay 能找回证据
+
+promotion 到自动化部署后，agent 才可能加：
 
 - deployment-owned daily wrapper script
-- cron/systemd/launchd schedule，定时跑 `scripts/raw-os daily`
+- cron/systemd/launchd schedule，在固定时间跑一次 `scripts/raw-os daily`
 - 日志文件，例如 `tmp/raw-os-logs/official.log`
 - optional delivery adapter，用来发送 official docx/raw-md
 - optional operator command，例如 `/raw`
 
 cron 和 delivery 不是首次安装的必要条件。首次安装的验收线是 ledger、render、
 audit、retrieval 跑通；自动化属于 promotion。
+
+`scripts/raw-os daily` 是一次性 batch command，不是常驻进程。不要为了
+“守护”而每 30 秒跑一次 daily。需要自动化时，默认是每天 anchor time 跑一次；
+如果未来要近实时 capture，应另接 runtime adapter / spool ingest，而不是用
+cron 高频重跑 daily。
 
 Raw OS 首次安装时不会自动安装 service。promotion 阶段由 agent 按平台选择：
 
@@ -104,6 +120,19 @@ Raw OS 首次安装时不会自动安装 service。promotion 阶段由 agent 按
 
 agent 应先展示生成的 wrapper、scheduler 文件/行、log path、enable command、
 rollback command，再启用自动化。
+
+例子：
+
+- 首次安装：跑 `init`，写入或 ingest 一条 sample normalized event，手动跑一次
+  `scripts/raw-os daily`，然后验 ledger/render/audit/retrieval。到这里就结束。
+  不安装 cron、systemd、launchd、delivery，也不加 `/raw`。
+- promotion 后的自动化部署：shadow acceptance 通过后，才加一个 owner-approved
+  wrapper 和一个平台 scheduler。Linux 且有 systemd 时，用 user-level service +
+  timer 每天跑一次 wrapper；macOS 用 launchd user agent；cron 只是便携 fallback。
+
+错误理解：Raw OS 装好了，所以每 30 秒 cron 一次 `scripts/raw-os daily`，顺便发文件。
+这不对。`daily` 是每日 render/audit batch；runtime capture 应该走 adapter 或 spool
+ingest。
 
 ## 装好了怎么用？
 

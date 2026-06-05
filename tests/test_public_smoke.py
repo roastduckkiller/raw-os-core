@@ -1,11 +1,15 @@
 import json
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from raw_os_core import normalized_event_from_transcript_message, sender_id_from_event  # noqa: E402
 
 
 class PublicSmokeTest(unittest.TestCase):
@@ -43,6 +47,44 @@ class PublicSmokeTest(unittest.TestCase):
             doctor = json.loads(result.stdout)
             self.assertTrue(doctor["ok"])
             self.assertFalse(doctor["is_protected_workspace"])
+
+    def test_transcript_plain_string_content_and_sender_id(self) -> None:
+        obj = {
+            "type": "message",
+            "id": "rec-plain",
+            "timestamp": "2026-06-04T01:00:00.000Z",
+            "message": {
+                "role": "user",
+                "content": "plain string body",
+                "senderId": "example-user-1",
+                "sourceChannel": "telegram",
+            },
+        }
+        event = normalized_event_from_transcript_message(obj, default_channel="telegram", default_provider="telegram")
+        assert event is not None
+        self.assertEqual(event["event_id"], "telegram_example-user-1_rec-plain")
+        self.assertEqual(sender_id_from_event(event), "example-user-1")
+        self.assertEqual(event["content_parts"][0]["text"], "plain string body")
+
+    def test_assistant_plain_string_content(self) -> None:
+        obj = {
+            "type": "message",
+            "id": "assist-plain",
+            "timestamp": "2026-06-04T01:01:00.000Z",
+            "message": {
+                "role": "assistant",
+                "content": "assistant plain string",
+            },
+        }
+        event = normalized_event_from_transcript_message(
+            obj,
+            default_channel="telegram",
+            default_provider="telegram",
+            default_chat_id="telegram:example-user-1",
+        )
+        assert event is not None
+        self.assertEqual(event["event_id"], "telegram_assistant_assist-plain")
+        self.assertEqual(event["content_parts"][0]["text"], "assistant plain string")
 
 
 if __name__ == "__main__":

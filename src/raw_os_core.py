@@ -290,9 +290,22 @@ def parse_kv_items(items: Optional[List[str]]) -> Dict[str, str]:
     return out
 
 
+def normalize_content_parts(content: Any) -> List[Any]:
+    if isinstance(content, str):
+        return [{"type": "text", "text": content}]
+    if isinstance(content, dict):
+        return [content]
+    if isinstance(content, list):
+        return content
+    return []
+
+
 def text_from_content_parts(parts: List[Dict[str, Any]]) -> str:
     texts: List[str] = []
-    for part in parts:
+    for part in normalize_content_parts(parts):
+        if isinstance(part, str):
+            texts.append(part)
+            continue
         if isinstance(part, dict) and part.get("type") == "text" and part.get("text"):
             texts.append(str(part["text"]))
     return "\n".join(texts).strip()
@@ -371,12 +384,20 @@ def sender_id_from_event(event: Dict[str, Any]) -> str:
     return "unknown-sender"
 
 
-def extract_text_from_message_content(content: List[Dict[str, Any]]) -> str:
+def extract_text_from_message_content(content: Any) -> str:
     texts: List[str] = []
-    for part in content or []:
+    for part in normalize_content_parts(content):
+        if isinstance(part, str):
+            texts.append(part)
+            continue
         if isinstance(part, dict) and part.get("type") == "text" and part.get("text"):
             texts.append(str(part["text"]))
     return "\n".join(texts).strip()
+
+
+def sender_id_from_transcript_message(msg: Dict[str, Any]) -> Optional[str]:
+    sid = msg.get("senderId") or msg.get("sender_id")
+    return str(sid) if sid is not None else None
 
 
 def parse_untrusted_metadata_blocks(text: str) -> Tuple[Dict[str, Any], Dict[str, Any], str]:
@@ -558,7 +579,7 @@ def normalized_event_from_transcript_message(obj: Dict[str, Any], *, default_cha
             return None
         chat_id = str(conv.get("chat_id") or default_chat_id or "unknown-chat")
         message_id = str(conv.get("message_id") or obj.get("id") or "unknown-message")
-        sender_id = str(conv.get("sender_id") or sender_meta.get("id") or default_sender_id or "unknown-sender")
+        sender_id = str(conv.get("sender_id") or sender_meta.get("id") or sender_id_from_transcript_message(msg) or default_sender_id or "unknown-sender")
         channel = infer_channel_from_source(chat_id=chat_id, message_id=message_id, provider=conv.get("provider") or default_provider, default_channel=default_channel)
         provider = infer_provider_from_source(chat_id=chat_id, message_id=message_id, default_provider=default_provider, channel=channel)
         timestamp = str(obj.get("timestamp") or parse_openclaw_display_timestamp(conv.get("timestamp"), obj.get("timestamp")))
